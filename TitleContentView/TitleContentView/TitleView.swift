@@ -53,21 +53,6 @@ class TitleView: UIView {
         self.titles = titles
         super.init(frame: frame)
         setupUI()
-        defaultSetting()
-    }
-    
-    func defaultSetting() {
-        // 1. 设置默认选中的Label的样式
-        labelArray[style.defaultSelectedIndex].textColor = style.titleSelectedTextColor
-        labelArray[style.defaultSelectedIndex].font = style.titleSelectedFont
-        currentIndex = style.defaultSelectedIndex
-        
-        // 2. 设置默认选中文字的缩放
-        if style.isNeedScale {
-            labelArray[style.defaultSelectedIndex].transform = CGAffineTransform(scaleX: style.maxScale, y: style.maxScale)
-            coverView.frame.size.width = labelArray[style.defaultSelectedIndex].frame.size.width + style.coverViewMargin * 2
-            coverView.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.origin.x - style.coverViewMargin
-        }
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -107,9 +92,10 @@ extension TitleView {
             label.tag = index
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(labelClick(tapGesture:)))
             label.addGestureRecognizer(tapGesture)
-            scrollView.addSubview(label)
             labelArray.append(label)
+            scrollView.addSubview(label)
         }
+        
         // 2. 设置Label的frame
         var labelX: CGFloat = 0
         let labelY: CGFloat = 0
@@ -118,16 +104,26 @@ extension TitleView {
         for (index, label) in labelArray.enumerated() {
             if style.isScrollEnable {
                 labelW = (label.text! as NSString).boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: style.titleViewHeight), options: NSStringDrawingOptions.usesLineFragmentOrigin, attributes: [NSAttributedStringKey.font: style.titleSelectedFont], context: nil).size.width
-                labelX = index == 0 ? style.titleLabelMargin : labelArray[index-1].frame.maxX + style.titleLabelMargin
+                labelX = index == 0 ? style.titleLabelMarginWhenIsScrollTrue : labelArray[index-1].frame.maxX + style.titleLabelMarginWhenIsScrollTrue
                 label.frame = CGRect(x: labelX, y: labelY, width: labelW, height: labelH)
                 
                 // 设置ScrollView的contentSize
-                scrollView.contentSize = CGSize(width: (labelArray.last?.frame.maxX)! + style.titleLabelMargin, height: style.titleViewHeight)
+                scrollView.contentSize = CGSize(width: (labelArray.last?.frame.maxX)! + style.titleLabelMarginWhenIsScrollTrue, height: style.titleViewHeight)
             } else {
-                labelW = self.bounds.width / CGFloat(labelArray.count)
-                labelX = labelW * CGFloat(index)
+                let marginCount = CGFloat(labelArray.count + 1)
+                labelW = (self.bounds.width - marginCount * style.titleLabelMarginWhenIsScrollFalse) / CGFloat(labelArray.count)
+                labelX = index == 0 ? style.titleLabelMarginWhenIsScrollFalse : labelArray[index - 1].frame.maxX + style.titleLabelMarginWhenIsScrollFalse
                 label.frame = CGRect(x: labelX, y: labelY, width: labelW, height: labelH)
             }
+        }
+        
+        // 1. 设置默认选中的Label的样式
+        labelArray[style.defaultSelectedIndex].textColor = style.titleSelectedTextColor
+        labelArray[style.defaultSelectedIndex].font = style.titleSelectedFont
+        
+        // 设置默认选中文字的缩放
+        if style.isNeedScale {
+            labelArray[style.defaultSelectedIndex].transform = CGAffineTransform(scaleX: style.maxScale, y: style.maxScale)
         }
     }
     
@@ -141,6 +137,9 @@ extension TitleView {
         if let bottomLineWidth = style.bottomLineWidth {
             bottomLine.frame.size.width = bottomLineWidth
             bottomLine.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.midX - bottomLineWidth * 0.5
+        } else {
+            bottomLine.frame.size.width = labelArray[style.defaultSelectedIndex].frame.size.width
+            bottomLine.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.midX - bottomLine.bounds.width * 0.5
         }
     }
     
@@ -154,9 +153,11 @@ extension TitleView {
         // frame
         coverView.frame = labelArray[style.defaultSelectedIndex].frame
         coverView.frame.size.height = style.coverViewHeight
-        coverView.frame.origin.y = labelArray[style.defaultSelectedIndex].frame.origin.y + (style.titleViewHeight - style.coverViewHeight) * 0.5
-        coverView.frame.size.width = labelArray[style.defaultSelectedIndex].frame.size.width + style.coverViewMargin * 2
-        coverView.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.origin.x - style.coverViewMargin
+        coverView.frame.origin.y = (style.titleViewHeight - style.coverViewHeight) * 0.5
+        if style.isScrollEnable {
+            coverView.frame.size.width = labelArray[style.defaultSelectedIndex].frame.size.width + style.coverViewMargin * 2
+            coverView.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.origin.x - style.coverViewMargin
+        }
     }
 }
 
@@ -182,7 +183,15 @@ extension TitleView {
             adjustCurrentLabelPosition()
         }
         
-        // 5. 调整bottomLine的位置
+        // 5. 调整文字的缩放
+        if style.isNeedScale {
+            UIView.animate(withDuration: 0.3, animations: {
+                self.labelArray[self.previousIndex].transform = CGAffineTransform.identity
+                self.labelArray[self.currentIndex].transform = CGAffineTransform(scaleX: self.style.maxScale, y: self.style.maxScale)
+            })
+        }
+        
+        // 6. 调整bottomLine的位置
         if style.isShowBottomLine {
             UIView.animate(withDuration: 0.3, animations: {
                 if let bottomLineWidth = self.style.bottomLineWidth {
@@ -194,28 +203,26 @@ extension TitleView {
             })
         }
         
-        // 6. 调整文字的缩放
-        if style.isNeedScale {
-            UIView.animate(withDuration: 0.3, animations: {
-                self.labelArray[self.previousIndex].transform = CGAffineTransform.identity
-                self.labelArray[self.currentIndex].transform = CGAffineTransform(scaleX: self.style.maxScale, y: self.style.maxScale)
-            })
-        }
-        
         // 7. 调整遮盖View的位置
         if style.isShowCoverView {
             UIView.animate(withDuration: 0.3, animations: {
-                self.coverView.frame.origin.x = self.style.isScrollEnable ? self.labelArray[self.currentIndex].frame.origin.x - self.style.coverViewMargin : self.labelArray[self.currentIndex].frame.origin.x
-                self.coverView.frame.size.width = self.style.isScrollEnable ? self.labelArray[self.currentIndex].frame.size.width + self.style.coverViewMargin * 2 : self.labelArray[self.currentIndex].frame.size.width
+                if self.style.isScrollEnable {
+                    self.coverView.frame.origin.x = self.labelArray[self.currentIndex].frame.origin.x - self.style.coverViewMargin
+                    self.coverView.frame.size.width = self.labelArray[self.currentIndex].frame.size.width + self.style.coverViewMargin * 2
+                } else {
+                    self.coverView.frame.origin.x = self.labelArray[self.currentIndex].frame.origin.x
+                    self.coverView.frame.size.width = self.labelArray[self.currentIndex].frame.size.width
+                }
             })
         }
         
-        // 7. 通知内容View
+        // 8. 通知内容View
         delegate?.titleView(titleView: self, currentIndex: currentIndex)
     }
     
     // 点击文字后调整选中文字的位置到屏幕中心
     fileprivate func adjustCurrentLabelPosition() {
+        
         //1. 获取当前选中的label距离屏幕中心位置的距离
         var offsetX = labelArray[currentIndex].center.x - bounds.width * 0.5
         
@@ -242,6 +249,7 @@ extension TitleView: ContentViewDelegate {
         
         self.currentIndex = currentIndex
         self.previousIndex = previousIndex
+        
         // 1. 获取上一个选中的label和当前选中的label
         let currentLabel = labelArray[currentIndex]
         let previousLabel = labelArray[previousIndex]
@@ -258,7 +266,7 @@ extension TitleView: ContentViewDelegate {
         let blue = (selectedTextColorRGB.2 - colorRange.2 * progress)/255
         previousLabel.textColor = UIColor(red: red, green: green, blue: blue, alpha: 1.0)
         
-
+        
         //3. 调整文字缩放
         if style.isNeedScale {
             let scaleRange = style.maxScale - 1.0
@@ -268,20 +276,25 @@ extension TitleView: ContentViewDelegate {
         
         //4. 调整bottomLine的位置
         let widthRange = currentLabel.frame.width - previousLabel.frame.width
-        let xRange = currentLabel.frame.origin.x - previousLabel.frame.origin.x
+        let xRange = currentLabel.frame.midX - previousLabel.frame.midX
         if style.isShowBottomLine {
             if let bottomLineWidth = style.bottomLineWidth {
                 bottomLine.frame.origin.x = previousLabel.frame.midX + xRange * progress - bottomLineWidth * 0.5
             } else {
                 bottomLine.frame.size.width = previousLabel.frame.width + widthRange * progress
-                bottomLine.frame.origin.x = previousLabel.frame.origin.x + xRange * progress
+                bottomLine.frame.origin.x = previousLabel.frame.midX + xRange * progress - bottomLine.bounds.width * 0.5
             }
         }
         
         //5. 调整coverView的位置
         if style.isShowCoverView {
-            coverView.frame.origin.x = style.isScrollEnable ? (previousLabel.frame.origin.x - style.coverViewMargin + xRange * progress) : (previousLabel.frame.origin.x + xRange * progress)
-            coverView.frame.size.width = style.isScrollEnable ? (previousLabel.frame.size.width + style.coverViewMargin * 2 + widthRange * progress) : (previousLabel.frame.size.width + widthRange * progress)
+            if style.isScrollEnable {
+                coverView.frame.size.width = previousLabel.frame.size.width + style.coverViewMargin * 2 + widthRange * progress
+                coverView.frame.origin.x = previousLabel.frame.midX + xRange * progress - coverView.bounds.width * 0.5
+            } else {
+                coverView.frame.size.width = previousLabel.frame.size.width + widthRange * progress
+                coverView.frame.origin.x = previousLabel.frame.midX + xRange * progress - coverView.frame.width * 0.5
+            }
         }
     }
     
