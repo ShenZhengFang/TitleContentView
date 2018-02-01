@@ -9,24 +9,32 @@
 import UIKit
 
 protocol TitleViewDelegate: class {
-    // 切换控制器
+    // 切换内容控制器
     func titleView(titleView: TitleView, currentIndex: Int)
 }
 
 class TitleView: UIView {
     
     lazy var scrollView: UIScrollView = {
-        let scrollView = UIScrollView(frame: self.bounds)
+        let scrollView = UIScrollView()
+        scrollView.backgroundColor = style.scrollViewBackgroundColor
         scrollView.scrollsToTop = false
         scrollView.showsHorizontalScrollIndicator = false
         return scrollView
     }()
+    
     lazy var bottomLine: UIView = {
         let bottomLine: UIView = UIView()
+        bottomLine.backgroundColor = style.selectedTextColor
         return bottomLine
     }()
+    
     lazy var coverView: UIView = {
         let coverView: UIView = UIView()
+        coverView.backgroundColor = style.coverViewBackgroundColor
+        coverView.alpha = style.coverViewAlpha
+        coverView.layer.cornerRadius = style.coverViewRadius
+        coverView.layer.masksToBounds = true
         return coverView
     }()
     
@@ -37,8 +45,8 @@ class TitleView: UIView {
     fileprivate var previousIndex: Int = 0
     
     //根据UIColor(r,g,b)获取一个保存颜色RBG值得元组
-    fileprivate lazy var textColorRGB : (CGFloat, CGFloat, CGFloat) = self.style.titleTextColor.getRGBValue()
-    fileprivate lazy var selectedTextColorRGB : (CGFloat, CGFloat, CGFloat) = self.style.titleSelectedTextColor.getRGBValue()
+    fileprivate lazy var textColorRGB : (CGFloat, CGFloat, CGFloat) = self.style.textColor.getRGBValue()
+    fileprivate lazy var selectedTextColorRGB : (CGFloat, CGFloat, CGFloat) = self.style.selectedTextColor.getRGBValue()
     //根据上面两个颜色求颜色变化的范围
     fileprivate lazy var colorRange : (CGFloat, CGFloat, CGFloat) = {
         let colorRange = (self.selectedTextColorRGB.0 - self.textColorRGB.0, self.selectedTextColorRGB.1 - self.textColorRGB.1, self.selectedTextColorRGB.2 - self.textColorRGB.2)
@@ -48,11 +56,13 @@ class TitleView: UIView {
     var style: PageStyle
     var titles: [String]
     
+    
     init(frame: CGRect, style: PageStyle, titles: [String]) {
         self.style = style
         self.titles = titles
         super.init(frame: frame)
-        setupUI()
+        
+        setupSubviews()
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -62,22 +72,32 @@ class TitleView: UIView {
 
 extension TitleView {
     
-    func setupUI() {
-        
-        self.backgroundColor = style.titleViewColor
+    func setupSubviews() {
         
         // 1. UIScrollView实现滚动标题栏
-        addSubview(scrollView)
+        addScrollView()
+        
         // 2. 添加标题
         addTitleLabel()
+        
         // 3. 添加文字下划线
         if style.isShowBottomLine {
             addBottomLine()
         }
+        
         // 4. 添加coverView
         if style.isShowCoverView {
             addCoverView()
         }
+    }
+    
+    func addScrollView() {
+        addSubview(scrollView)
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.topAnchor.constraint(equalTo: topAnchor).isActive = true
+        scrollView.leadingAnchor.constraint(equalTo: leadingAnchor).isActive = true
+        scrollView.trailingAnchor.constraint(equalTo: trailingAnchor).isActive = true
+        scrollView.bottomAnchor.constraint(equalTo: bottomAnchor).isActive = true
     }
     
     func addTitleLabel() {
@@ -87,13 +107,13 @@ extension TitleView {
             label.text = title
             label.textAlignment = .center
             label.isUserInteractionEnabled = true
-            label.font = style.titleFont
-            label.textColor = style.titleTextColor
+            label.font = style.font
+            label.textColor = style.textColor
             label.tag = index
             let tapGesture = UITapGestureRecognizer(target: self, action: #selector(labelClick(tapGesture:)))
             label.addGestureRecognizer(tapGesture)
-            labelArray.append(label)
             scrollView.addSubview(label)
+            labelArray.append(label)
         }
         
         // 2. 设置Label的frame
@@ -102,61 +122,53 @@ extension TitleView {
         var labelW: CGFloat = 0
         let labelH: CGFloat = style.titleViewHeight - style.bottomLineHeight
         for (index, label) in labelArray.enumerated() {
+            labelX = index == 0 ? style.titleLabelMargin : labelArray[index - 1].frame.maxX + style.titleLabelMargin
             if style.isScrollEnable {
-                labelW = (label.text! as NSString).boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: style.titleViewHeight), options: NSStringDrawingOptions.usesLineFragmentOrigin, attributes: [NSAttributedStringKey.font: style.titleSelectedFont], context: nil).size.width
-                labelX = index == 0 ? style.titleLabelMarginWhenIsScrollTrue : labelArray[index-1].frame.maxX + style.titleLabelMarginWhenIsScrollTrue
+                labelW = (label.text! as NSString).boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: style.titleViewHeight), options: NSStringDrawingOptions.usesLineFragmentOrigin, attributes: [NSAttributedStringKey.font: style.selectedFont], context: nil).size.width
                 label.frame = CGRect(x: labelX, y: labelY, width: labelW, height: labelH)
-                
                 // 设置ScrollView的contentSize
-                scrollView.contentSize = CGSize(width: (labelArray.last?.frame.maxX)! + style.titleLabelMarginWhenIsScrollTrue, height: style.titleViewHeight)
+                scrollView.contentSize = CGSize(width: (labelArray.last?.frame.maxX)! + style.titleLabelMargin, height: style.titleViewHeight)
             } else {
-                let marginCount = CGFloat(labelArray.count + 1)
-                labelW = (self.bounds.width - marginCount * style.titleLabelMarginWhenIsScrollFalse) / CGFloat(labelArray.count)
-                labelX = index == 0 ? style.titleLabelMarginWhenIsScrollFalse : labelArray[index - 1].frame.maxX + style.titleLabelMarginWhenIsScrollFalse
+                let middleMarginCount = CGFloat(labelArray.count + 1)
+                labelW = (self.bounds.width - middleMarginCount * style.titleLabelMargin) / CGFloat(labelArray.count)
                 label.frame = CGRect(x: labelX, y: labelY, width: labelW, height: labelH)
             }
         }
         
-        // 1. 设置默认选中的Label的样式
-        labelArray[style.defaultSelectedIndex].textColor = style.titleSelectedTextColor
-        labelArray[style.defaultSelectedIndex].font = style.titleSelectedFont
+        // 3. 设置默认选中的Label的样式
+        labelArray[style.selectedIndex].textColor = style.selectedTextColor
+        labelArray[style.selectedIndex].font = style.selectedFont
         
-        // 设置默认选中文字的缩放
+        // 4. 设置默认选中文字的缩放
         if style.isNeedScale {
-            labelArray[style.defaultSelectedIndex].transform = CGAffineTransform(scaleX: style.maxScale, y: style.maxScale)
+            labelArray[style.selectedIndex].transform = CGAffineTransform(scaleX: style.maxScale, y: style.maxScale)
         }
     }
     
     // 添加下划线
     func addBottomLine() {
         scrollView.addSubview(bottomLine)
-        bottomLine.backgroundColor = style.titleSelectedTextColor
-        bottomLine.frame = labelArray[style.defaultSelectedIndex].frame
+        bottomLine.frame = labelArray[style.selectedIndex].frame
         bottomLine.frame.size.height = style.bottomLineHeight
         bottomLine.frame.origin.y = style.titleViewHeight - style.bottomLineHeight
         if let bottomLineWidth = style.bottomLineWidth {
             bottomLine.frame.size.width = bottomLineWidth
-            bottomLine.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.midX - bottomLineWidth * 0.5
+            bottomLine.frame.origin.x = labelArray[style.selectedIndex].frame.midX - bottomLineWidth * 0.5
         } else {
-            bottomLine.frame.size.width = labelArray[style.defaultSelectedIndex].frame.size.width
-            bottomLine.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.midX - bottomLine.bounds.width * 0.5
+            bottomLine.frame.size.width = labelArray[style.selectedIndex].frame.size.width
+            bottomLine.frame.origin.x = labelArray[style.selectedIndex].frame.midX - bottomLine.bounds.width * 0.5
         }
     }
     
     // 添加遮盖View
     func addCoverView() {
         scrollView.insertSubview(coverView, at: 0)
-        coverView.backgroundColor = style.coverViewColor
-        coverView.layer.cornerRadius = style.coverViewRadius
-        coverView.layer.masksToBounds = true
-        coverView.alpha = style.coverViewAlpha
-        // frame
-        coverView.frame = labelArray[style.defaultSelectedIndex].frame
+        coverView.frame = labelArray[style.selectedIndex].frame
         coverView.frame.size.height = style.coverViewHeight
         coverView.frame.origin.y = (style.titleViewHeight - style.coverViewHeight) * 0.5
         if style.isScrollEnable {
-            coverView.frame.size.width = labelArray[style.defaultSelectedIndex].frame.size.width + style.coverViewMargin * 2
-            coverView.frame.origin.x = labelArray[style.defaultSelectedIndex].frame.origin.x - style.coverViewMargin
+            coverView.frame.size.width = labelArray[style.selectedIndex].frame.size.width + style.coverViewMargin * 2
+            coverView.frame.origin.x = labelArray[style.selectedIndex].frame.origin.x - style.coverViewMargin
         }
     }
 }
@@ -164,18 +176,19 @@ extension TitleView {
 //MARK: - Label Event
 extension TitleView {
     
-    @objc func labelClick(tapGesture: UITapGestureRecognizer) {
+    @objc fileprivate func labelClick(tapGesture: UITapGestureRecognizer) {
+        
         // 1. 获取当前选中的label
         guard let currentLabel = tapGesture.view as? UILabel else {return}
         
         // 2. 设置上一次选中的label的颜色
         previousIndex = currentIndex
-        labelArray[previousIndex].textColor = style.titleTextColor
-        labelArray[previousIndex].font = style.titleFont
+        labelArray[previousIndex].textColor = style.textColor
+        labelArray[previousIndex].font = style.font
         
         // 3. 设置当前选中label的颜色
-        currentLabel.textColor = style.titleSelectedTextColor
-        currentLabel.font = style.titleSelectedFont
+        currentLabel.textColor = style.selectedTextColor
+        currentLabel.font = style.selectedFont
         currentIndex = currentLabel.tag
         
         // 4. 设置当前选中的label的位置
@@ -216,7 +229,7 @@ extension TitleView {
             })
         }
         
-        // 8. 通知内容View
+        // 8. 通知contentView切换VC
         delegate?.titleView(titleView: self, currentIndex: currentIndex)
     }
     
@@ -261,11 +274,11 @@ extension TitleView: ContentViewDelegate {
         let selectedGreen = (textColorRGB.1 + colorRange.1 * progress)/255
         let selectedBlue = (textColorRGB.2 + colorRange.2 * progress)/255
         currentLabel.textColor = UIColor(red: selectedRed, green: selectedGreen, blue: selectedBlue, alpha: 1.0)
+        
         let red = (selectedTextColorRGB.0 - colorRange.0 * progress)/255
         let green = (selectedTextColorRGB.1 - colorRange.1 * progress)/255
         let blue = (selectedTextColorRGB.2 - colorRange.2 * progress)/255
         previousLabel.textColor = UIColor(red: red, green: green, blue: blue, alpha: 1.0)
-        
         
         //3. 调整文字缩放
         if style.isNeedScale {

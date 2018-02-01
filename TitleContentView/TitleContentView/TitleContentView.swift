@@ -21,7 +21,7 @@ class TitleContentView: UIView {
         self.childVCs = childVCs
         self.parentVC = parentVC
         super.init(frame: frame)
-        setupUI()
+        setupSubviews()
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -31,17 +31,22 @@ class TitleContentView: UIView {
 
 extension TitleContentView {
     
-    func setupUI() {
+    func setupSubviews() {
+        
+        // 2. 添加titleView
+        let titleView = TitleView(frame: bounds, style: self.style, titles: self.titles)
+        titleView.backgroundColor = style.titleViewBackgroundColor
+        addSubview(titleView)
+        titleView.translatesAutoresizingMaskIntoConstraints = false
+        titleView.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor).isActive = true
+        titleView.leadingAnchor.constraint(equalTo: leadingAnchor).isActive = true
+        titleView.trailingAnchor.constraint(equalTo: trailingAnchor).isActive = true
+        titleView.heightAnchor.constraint(equalToConstant: style.titleViewHeight).isActive = true
         
         // 1. 添加contentView
-        let contentViewFrame = CGRect(x: 0, y: self.style.titleViewHeight, width: self.bounds.width, height: self.bounds.height - self.style.titleViewHeight)
-        let contentView = ContentView(frame: contentViewFrame, style: self.style, childVCs: self.childVCs, parentVC: self.parentVC)
-        addSubview(contentView)
-     
-        // 2. 添加titleView
-        let titleViewFrame = CGRect(x: 0, y: 0, width: self.bounds.width, height: self.style.titleViewHeight)
-        let titleView = TitleView(frame: titleViewFrame, style: self.style, titles: self.titles)
-        addSubview(titleView)
+        let contentView = ContentView(frame: frame, style: self.style, childVCs: self.childVCs, parentVC: self.parentVC)
+        contentView.backgroundColor = style.contentViewBackgroundColor
+        insertSubview(contentView, belowSubview: titleView)
         
         // 3. 设置标题栏和控制器的代理
         titleView.delegate = contentView

@@ -36,12 +36,13 @@ class ContentView: UIView {
         self.childVCs = childVCs
         self.parentVC = parentVC
         super.init(frame: frame)
-        setupUI()
+        
+        setupSubviews()
         defaultSetting()
     }
     
     private func defaultSetting() {
-        collectionView?.scrollToItem(at: IndexPath(item: style.defaultSelectedIndex, section: 0), at: .centeredHorizontally, animated: true)
+        collectionView?.scrollToItem(at: IndexPath(item: style.selectedIndex, section: 0), at: .centeredHorizontally, animated: true)
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -51,24 +52,34 @@ class ContentView: UIView {
 
 extension ContentView {
     
-    func setupUI() {
+    func setupSubviews() {
         addCollectionView()
         addChildVC()
     }
     
     func addCollectionView() {
         let layout = UICollectionViewFlowLayout()
-        layout.itemSize = bounds.size
+        layout.itemSize = CGSize(width: bounds.width, height: bounds.height - style.contentViewTopOffset - style.contentViewBottomOffset)
         layout.scrollDirection = .horizontal
         layout.minimumLineSpacing = 0
-        let collectionView = UICollectionView(frame: bounds, collectionViewLayout: layout)
+        let collectionView = UICollectionView(frame: CGRect.zero, collectionViewLayout: layout)
+        self.collectionView = collectionView
         collectionView.bounces = false
         collectionView.isPagingEnabled = true
         collectionView.dataSource = self
         collectionView.delegate = self
         collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "TitleContentViewID")
+        if #available(iOS 11, *) {
+            collectionView.contentInsetAdjustmentBehavior = .never
+        } else {
+            parentVC.automaticallyAdjustsScrollViewInsets = false
+        }
         addSubview(collectionView)
-        self.collectionView = collectionView
+        collectionView.translatesAutoresizingMaskIntoConstraints = false
+        collectionView.topAnchor.constraint(equalTo: topAnchor, constant: style.contentViewTopOffset).isActive = true
+        collectionView.leadingAnchor.constraint(equalTo: leadingAnchor).isActive = true
+        collectionView.trailingAnchor.constraint(equalTo: trailingAnchor).isActive = true
+        collectionView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -style.contentViewBottomOffset).isActive = true
     }
     
     func addChildVC() {
@@ -103,7 +114,7 @@ extension ContentView: UICollectionViewDelegate {
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         
-        if isForbidDelegate {return}
+        if isForbidDelegate { return }
         
         // 1. 获取currentIndex、previousIndex
         let currentOffsetX = scrollView.contentOffset.x
@@ -144,7 +155,6 @@ extension ContentView: UICollectionViewDelegate {
     }
     
     private func collectionViewDidEndScroll(scrollView: UIScrollView) {
-        
         //1. 获取当前选中的contentView的currentIndex
         let currentIndex = Int(scrollView.contentOffset.x/scrollView.bounds.width)
         //2. 通知titleView移动当前选中的titleLabel到屏幕中间位置
