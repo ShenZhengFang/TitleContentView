@@ -68,6 +68,7 @@ extension ContentView {
         collectionView.isPagingEnabled = true
         collectionView.dataSource = self
         collectionView.delegate = self
+        collectionView.backgroundColor = UIColor.green
         collectionView.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "TitleContentViewID")
         if #available(iOS 11, *) {
             collectionView.contentInsetAdjustmentBehavior = .never
@@ -139,6 +140,27 @@ extension ContentView: UICollectionViewDelegate {
             }
             progress = 1
         }
+        
+        // 临界值判断
+        if currentIndex < 0 {
+            currentIndex = 0
+        }
+        
+        // 临界值判断
+        if previousIndex < 0 {
+            previousIndex = 0
+        }
+        
+        // 临界值判断
+        if currentIndex > childVCs.count - 1 {
+            currentIndex = childVCs.count - 1
+        }
+        
+        // 临界值判断
+        if previousIndex > childVCs.count - 1 {
+            previousIndex = childVCs.count - 1
+        }
+        
         delegate?.contentView(contentView: self, currentIndex: currentIndex, previousIndex: previousIndex, progress: progress)
     }
     

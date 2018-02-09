@@ -33,7 +33,7 @@ extension TitleContentView {
     
     func setupSubviews() {
         
-        // 2. 添加titleView
+        // 1. 添加titleView
         let titleView = TitleView(frame: bounds, style: self.style, titles: self.titles)
         titleView.backgroundColor = style.titleViewBackgroundColor
         addSubview(titleView)
@@ -43,7 +43,7 @@ extension TitleContentView {
         titleView.trailingAnchor.constraint(equalTo: trailingAnchor).isActive = true
         titleView.heightAnchor.constraint(equalToConstant: style.titleViewHeight).isActive = true
         
-        // 1. 添加contentView
+        // 2. 添加contentView
         let contentView = ContentView(frame: frame, style: self.style, childVCs: self.childVCs, parentVC: self.parentVC)
         contentView.backgroundColor = style.contentViewBackgroundColor
         insertSubview(contentView, belowSubview: titleView)
